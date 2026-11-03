@@ -22,6 +22,7 @@ export async function commitPending(api: (path: string, body: unknown) => Promis
   storage.setItem(key, JSON.stringify(request));
   try {
     const receipt = await api(request.route, request.body);
+    if (receipt?.status === 'PENDING') throw new Error('INTAKE_IN_PROGRESS: Recover the same request to check its outcome.');
     if (receipt?.actionId !== request.body.actionId || !Number.isInteger(receipt?.version)) throw new Error('INVALID_ACTION_RECEIPT');
     storage.removeItem(key);
     return receipt;

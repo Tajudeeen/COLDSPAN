@@ -1,6 +1,6 @@
 {
-  "checkedAt": "2026-11-03T04:03:40.176Z",
-  "build": "coldspan-cf-20261103-3",
+  "checkedAt": "2026-11-03T04:32:45.236Z",
+  "build": "coldspan-cf-20261103-4",
   "checks": [
     {
       "name": "pre-upgrade receipt and persisted state survive the typed backend deployment",
@@ -32,6 +32,10 @@
     },
     {
       "name": "expired review refuses session metadata and drill history",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "Meta remains disabled and unavailable intake cannot authorize facts or movement",
       "status": "VERIFIED_HOSTED"
     }
   ],

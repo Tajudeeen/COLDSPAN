@@ -20,6 +20,7 @@
     "src",
     "web",
     "tests",
-    "vite.config.ts"
+    "vite.config.ts",
+    "scripts/evaluate-intake.ts"
   ]
 }

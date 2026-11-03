@@ -1,6 +1,10 @@
 import { DurableObject } from "cloudflare:workers";
 import { digest, DomainError, need } from "../src/domain";
 import { WorkspaceStore } from "./store";
+import { runInterpretation } from './intake-service';
+import { modelCapability, type ModelConfig } from './meta';
+import { admitDailyModelCall, expireRateCounters } from './model-budget';
+const modelConfig = (env: Cloudflare.Env): ModelConfig => ({ apiKey: env.MODEL_API_KEY, enabled: env.MODEL_CALLS_ENABLED, model: env.MODEL_NAME });
 export class ColdspanWorkspace extends DurableObject<Cloudflare.Env> {
   private store: WorkspaceStore;
   constructor(ctx: DurableObjectState, env: Cloudflare.Env) {
@@ -14,6 +18,15 @@ export class ColdspanWorkspace extends DurableObject<Cloudflare.Env> {
   }
   request(method: string, path: string, body: string) {
     return JSON.stringify(this.store.request(method, path, JSON.parse(body)));
+  }
+  async interpret(body: string) {
+    try {
+      const record = await runInterpretation(this.store, JSON.parse(body), modelConfig(this.env), () => this.env.REQUEST_GATES.getByName('coldspan-global-model-budget-v1').admitModelCall());
+      return JSON.stringify({ ok: true, data: record, status: 200 });
+    } catch (error) {
+      if (error instanceof DomainError) return JSON.stringify({ ok: false, code: error.code, detail: error.detail, status: ['SESSION_REQUIRED', 'SESSION_EXPIRED'].includes(error.code) ? 401 : error.code === 'NOT_FOUND' ? 404 : 409 });
+      throw error;
+    }
   }
   alarm() {
     this.store.expire();
@@ -37,7 +50,13 @@ export class ColdspanRequestGate extends DurableObject<Cloudflare.Env> {
     return allowed;
   }
   async alarm() {
-    await this.ctx.storage.deleteAll();
+    expireRateCounters(this.ctx.storage);
+  }
+  async admitModelCall() {
+    const now = Date.now(), day = Math.floor(now / 86_400_000);
+    const allowed = admitDailyModelCall(this.ctx.storage, now);
+    await this.ctx.storage.setAlarm((day + 1) * 86_400_000 + 1000);
+    return allowed;
   }
 }
 function response(data: unknown, status = 200, origin?: string) {
@@ -82,6 +101,7 @@ const worker_default = { async fetch(request: Request, env: Cloudflare.Env): Pro
   const url = new URL(request.url);
   const path = url.pathname.replace(/^\/api(?=\/|$)/, "");
   if (request.method === "GET" && path === "/health") return response({ status: "ok", storage: "CLOUDFLARE_DURABLE_OBJECT_SQLITE", mode: "SYNTHETIC_SIMULATOR", model: "UNAVAILABLE", build: env.BUILD_ID }, 200, allowed);
+  if (request.method === 'GET' && path === '/capabilities') return response({ model: modelCapability(modelConfig(env)), mode: 'SYNTHETIC_SIMULATOR', fixtureReplay: true }, 200, allowed);
   if (!["GET", "POST"].includes(request.method)) return response({ code: "METHOD_NOT_ALLOWED" }, 405, allowed);
   try {
     const ip = request.headers.get("CF-Connecting-IP") || "unreported";
@@ -98,7 +118,8 @@ const worker_default = { async fetch(request: Request, env: Cloudflare.Env): Pro
     need(match, "SESSION_REQUIRED");
     const workspace = env.WORKSPACES.getByName(digest(match[1]));
     const body = request.method === "POST" ? await readBody(request) : {};
-    const r = JSON.parse(await workspace.request(request.method, path, JSON.stringify(body)));
+    if (request.method === 'POST' && /^\/incidents\/[^/]+\/intake$/.test(path)) need(body.incidentId === path.split('/')[2], 'SCOPE_MISMATCH');
+    const r = JSON.parse(await (request.method === 'POST' && /^\/incidents\/[^/]+\/intake$/.test(path) ? workspace.interpret(JSON.stringify(body)) : workspace.request(request.method, path, JSON.stringify(body))));
     return r.ok ? response(r.data, r.status, allowed) : response({ code: r.code, detail: r.detail }, r.status, allowed);
   } catch (e) {
     if (e instanceof DomainError) return response({ code: e.code, detail: e.detail }, e.code === "SESSION_REQUIRED" ? 401 : e.code === "RATE_LIMITED" ? 429 : 409, allowed);

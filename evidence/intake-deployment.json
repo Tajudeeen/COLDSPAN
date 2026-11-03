@@ -1,0 +1,19 @@
+{
+  "build": "coldspan-cf-20261103-4",
+  "deploymentId": "0c3ff84cc8494029985a0abcbec7eb71",
+  "modifiedOn": "2026-11-03T04:31:55.090873Z",
+  "exportsReconciliation": {
+    "created": [],
+    "updated": [],
+    "deleted": [],
+    "renamed": [],
+    "transferred": [],
+    "transfer_pending": [],
+    "warnings": [],
+    "info": [],
+    "removable_entries": []
+  },
+  "liveMetaCalls": 0,
+  "metaStatus": "UNAVAILABLE",
+  "limitations": "No MODEL_API_KEY configured. Provider calls disabled. Hosted intake flow uses an explicit illustrative fixture."
+}

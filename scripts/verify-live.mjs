@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
+import { createHash } from 'node:crypto';
+const canonical = value => Array.isArray(value) ? '[' + value.map(canonical).join(',') + ']' : value && typeof value === 'object' ? '{' + Object.keys(value).sort().map(key => JSON.stringify(key) + ':' + canonical(value[key])).join(',') + '}' : JSON.stringify(value);
+const digest = value => createHash('sha256').update(canonical(value)).digest('hex');
 const base = 'https://coldspan-api.tajudeenowoeteniyan.workers.dev/api';
 const origin = 'https://coldspan-preview.deeen-code.chatgpt.site';
 async function call(path, body, token, requestOrigin = origin) {
@@ -33,19 +36,27 @@ if (process.argv.includes('--hold-redeploy')) {
     assert.equal((await api(`/incidents/${incident.id}`)).version, 1);
   });
 }
-async function drill(scenario) {
+async function drill(scenario, withIntake = false) {
   let state = await api('/incidents', { scenario, seed: 7 });
   const id = state.id;
   const get = async () => state = await api(`/incidents/${id}`);
   const prepare = async (kind, route, payload = {}) => ({ route, body: { actionId: (await api(`/incidents/${id}/actions`, { kind })).actionId, expectedVersion: state.version, incidentId: id, payload } });
   const act = async (kind, route, payload = {}) => { const req = await prepare(kind, route, payload); const result = await api(req.route, req.body); await get(); return { req, result }; };
-  await act('facts', `/incidents/${id}/facts`, { confirmed: true, quantities: { 'leaf-01': 6, 'fruit-02': 6 } });
+  let intake;
+  if (withIntake) {
+    const request = await prepare('intake', `/incidents/${id}/intake`, { mode: 'fixture' });
+    intake = await api(request.route, request.body);
+    assert.deepEqual(await api(request.route, request.body), intake);
+    assert.equal(intake.mode, 'FIXTURE_REPLAY'); assert.equal(intake.provider.model, null); assert.equal(intake.provider.usage, null);
+    await get(); assert.equal(state.uncertain, true); assert.equal(state.version, 0);
+  }
+  await act('facts', `/incidents/${id}/facts`, { confirmed: true, quantities: { 'leaf-01': 6, 'fruit-02': 6 }, ...(intake ? { intakeId: intake.actionId, intakeDigest: digest(intake.review.candidate) } : {}) });
   await act('plan', `/incidents/${id}/plans`);
   return { id, get, prepare, act, state: () => state };
 }
 let completed;
 await check('complete outage, duplicate receipt and independent replay export', async () => {
-  const d = await drill('outage');
+  const d = await drill('outage', true);
   const p = d.state().plans.at(-1);
   await d.act('approve', `/plans/${p.id}/approve`, { digest: p.digest });
   await d.act('reserve', `/plans/${p.id}/reserve`, { digest: p.digest });
@@ -63,6 +74,9 @@ await check('complete outage, duplicate receipt and independent replay export', 
   assert.equal(d.state().status, 'RECONCILED');
   assert.equal(d.state().batches.reduce((n, b) => n + Object.values(b.locations).reduce((a, q) => a + q, 0), 0), 12);
   completed = await api(`/incidents/${d.id}/evidence`);
+  assert.equal(completed.manifest.schema, 2);
+  const interpretations = JSON.parse(completed.artifacts['interpretations.json']);
+  assert.equal(interpretations.length, 1); assert(interpretations[0].humanReview.actionId);
   await writeFile('evidence/cloudflare-hosted-completed.json', JSON.stringify(completed, null, 2));
   assert.equal((await call(`/incidents/${d.id}`, undefined, stranger.token)).status, 404);
 });
@@ -111,6 +125,19 @@ await check('expired review refuses session metadata and drill history', async (
     const response = await call(path, undefined, fresh.token);
     assert.equal(response.status, 401); assert.equal(response.data.code, 'SESSION_EXPIRED');
   }
+});
+await check('Meta remains disabled and unavailable intake cannot authorize facts or movement', async () => {
+  const capabilities = (await call('/capabilities')).data;
+  assert.equal(capabilities.model.status, 'UNAVAILABLE'); assert.equal(capabilities.model.reason, 'MODEL_API_KEY_MISSING');
+  const state = await api('/incidents', { scenario: 'outage', seed: 12, sourceNotes: 'Maybe six crates of greens. Tomato count needs confirmation.' });
+  const { actionId } = await api(`/incidents/${state.id}/actions`, { kind: 'intake' });
+  const body = { actionId, expectedVersion: 0, incidentId: state.id, payload: { mode: 'meta' } };
+  const record = await api(`/incidents/${state.id}/intake`, body);
+  assert.equal(record.status, 'UNAVAILABLE'); assert.equal(record.provider.usage, null);
+  assert.deepEqual(await api(`/incidents/${state.id}/intake`, body), record);
+  assert.equal((await api(`/incidents/${state.id}`)).uncertain, true);
+  assert.equal((await api(`/incidents/${state.id}`)).work.length, 0);
+  assert.equal((await call(`/incidents/${state.id}/intake`, undefined, stranger.token)).status, 404);
 });
 const currentHealth = await call('/health');
 const expected = process.argv.indexOf('--expected-build');

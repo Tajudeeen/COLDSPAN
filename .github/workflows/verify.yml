@@ -21,6 +21,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run typecheck:worker
       - run: npm test
+      - run: npm run evaluate:intake
       - run: npm run worker:check
       - run: npm run build
       - run: python3 verifier/check.py evidence/cloudflare-hosted-completed.json

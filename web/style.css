@@ -1479,3 +1479,5 @@ footer > span:last-child {
 .workspace-tools label { display: grid; gap: 7px; min-width: 0; flex: 1 1 280px; font-size: 12px; color: #52665a; }
 .workspace-tools select { min-width: 0; width: 100%; max-width: 100%; padding: 10px; border: 1px solid #dce4dd; border-radius: 7px; background: #f8faf7; color: #173f2b; }
 @media(max-width: 600px) { .workspace-tools { padding: 14px; } .workspace-tools .outline { width: 100%; } }
+
+.intake-panel { margin: 20px 0; } .intake-controls { display:flex; gap:12px; flex-wrap:wrap; margin:16px 0; } .intake-report { margin-top:16px; padding-top:16px; border-top:1px solid #dce4dd; } .intake-fact { padding:12px; margin:12px 0; border:1px solid #dce4dd; border-radius:10px; } .intake-fact .badge { margin-left:10px; } .intake-fact blockquote { margin:12px 0 0; } .source-notes-field { flex:1 1 100%; width:100%; } .source-notes-field textarea { width:100%; min-height:82px; padding:10px; border:1px solid #cdd8d0; border-radius:8px; font:inherit; } .source-notes-field small { max-width:600px; color:#65766a; }

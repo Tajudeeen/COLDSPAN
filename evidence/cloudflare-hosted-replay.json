@@ -1,1 +1,1 @@
-{"status": "VERIFIED_REPLAY", "events": 19, "quantity": 12, "incidentStatus": "RECONCILED", "limitations": "Internal synthetic consistency. No physical validation or independent signature."}
+{"status": "VERIFIED_REPLAY", "events": 19, "quantity": 12, "incidentStatus": "RECONCILED", "interpretations": 1, "limitations": "Internal synthetic consistency. No physical validation, independently authenticated model execution or independent signature."}

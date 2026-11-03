@@ -1,0 +1,306 @@
+{
+  "checkedAt": "2026-11-03T04:35:37.614Z",
+  "kind": "CANDIDATE_VALIDATION_FIXTURES",
+  "providerCalls": 0,
+  "total": 20,
+  "passed": 20,
+  "results": [
+    {
+      "id": "supported-counts",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true,
+        "issues": []
+      },
+      "pass": true
+    },
+    {
+      "id": "word-number",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true,
+        "issues": []
+      },
+      "pass": true
+    },
+    {
+      "id": "uncertainty-preserved",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true,
+        "issues": [
+          "UNCERTAINTY_REQUIRES_CONFIRMATION"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "invented-source",
+      "expected": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false,
+        "issues": [
+          "INVALID_TYPED_OUTPUT"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "invented-quote",
+      "expected": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false,
+        "issues": [
+          "UNSUPPORTED_SOURCE_BINDING"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "invented-batch",
+      "expected": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false,
+        "issues": [
+          "UNSUPPORTED_SOURCE_BINDING"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "quantity-not-in-quote",
+      "expected": {
+        "reason": "QUANTITY_NOT_GROUNDED",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "QUANTITY_NOT_GROUNDED",
+        "canApply": false,
+        "issues": [
+          "QUANTITY_NOT_GROUNDED"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "fraction-in-source",
+      "expected": {
+        "reason": "UNSUPPORTED_UNIT_OR_FRACTION",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "UNSUPPORTED_UNIT_OR_FRACTION",
+        "canApply": false,
+        "issues": [
+          "UNSUPPORTED_UNIT_OR_FRACTION"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "no-kg-conversion",
+      "expected": {
+        "reason": "UNSUPPORTED_UNIT_OR_FRACTION",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "UNSUPPORTED_UNIT_OR_FRACTION",
+        "canApply": false,
+        "issues": [
+          "UNSUPPORTED_UNIT_OR_FRACTION"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "missing-all-counts",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": false,
+        "issues": [
+          "MISSING_BATCH_FACTS"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "conflicting-counts",
+      "expected": {
+        "reason": "CONFLICTING_FACTS",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "CONFLICTING_FACTS",
+        "canApply": false,
+        "issues": [
+          "CONFLICTING_FACTS"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "missing-unit-needs-confirmation",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": true,
+        "issues": [
+          "UNIT_REQUIRES_CONFIRMATION"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "ambiguous-repeated-quote",
+      "expected": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "UNSUPPORTED_SOURCE_BINDING",
+        "canApply": false,
+        "issues": [
+          "UNSUPPORTED_SOURCE_BINDING"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "cannot-inject-arrival",
+      "expected": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false,
+        "issues": [
+          "INVALID_TYPED_OUTPUT"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "negative-candidate",
+      "expected": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false,
+        "issues": [
+          "INVALID_TYPED_OUTPUT"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "fractional-candidate",
+      "expected": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false,
+        "issues": [
+          "INVALID_TYPED_OUTPUT"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "negated-count",
+      "expected": {
+        "reason": "NEGATED_OR_NONCURRENT_QUOTE",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "NEGATED_OR_NONCURRENT_QUOTE",
+        "canApply": false,
+        "issues": [
+          "NEGATED_OR_NONCURRENT_QUOTE"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "missing-one-batch",
+      "expected": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "HUMAN_CONFIRMATION_REQUIRED",
+        "canApply": false,
+        "issues": [
+          "MISSING_BATCH_FACTS"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "oversized-output-question",
+      "expected": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "INVALID_TYPED_OUTPUT",
+        "canApply": false,
+        "issues": [
+          "INVALID_TYPED_OUTPUT"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "instruction-is-not-authority",
+      "expected": {
+        "reason": "NEGATED_OR_NONCURRENT_QUOTE",
+        "canApply": false
+      },
+      "observed": {
+        "reason": "NEGATED_OR_NONCURRENT_QUOTE",
+        "canApply": false,
+        "issues": [
+          "NEGATED_OR_NONCURRENT_QUOTE"
+        ]
+      },
+      "pass": true
+    }
+  ],
+  "limitations": "Hand-authored candidate outputs test local validation. No live model accuracy, token cost, extraction benefit or physical outcome is measured."
+}

@@ -67,6 +67,13 @@ test('a malformed success cannot discard an unresolved action', async () => {
   await assert.rejects(commitPending(async () => ({}), storage, request), /INVALID_ACTION_RECEIPT/);
   assert.deepEqual(JSON.parse(storage.getItem(pendingKey(request))!), request);
 });
+test('a pending interpretation keeps its identity until a terminal outcome is observed', async () => {
+  const storage = memory();
+  await assert.rejects(commitPending(async () => ({ actionId: request.body.actionId, version: 3, status: 'PENDING' }), storage, request), /INTAKE_IN_PROGRESS/);
+  assert.deepEqual(loadPending(storage), request);
+  await commitPending(async () => ({ actionId: request.body.actionId, version: 3, status: 'UNKNOWN_OUTCOME' }), storage, request);
+  assert.equal(loadPending(storage), null);
+});
 
 test('concurrent tabs cannot erase another unresolved action journal', async () => {
   const storage = memory();

@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import type { State, Transfer } from '../src/domain';
+import { digest, type State, type Transfer } from '../src/domain';
 import './style.css';
 import { remoteApi, downloadEvidence, ApiError, SESSION_KEY } from './remote-api';
 import { commitPending, loadPending, PENDING_KEY, PENDING_PREFIX, type PendingRequest } from './action-journal';
 import { loadWorkspace, restartExpiredReview, CURRENT_KEY, type SessionInfo, type WorkspaceSnapshot } from './workspace';
+import { IntakePanel } from './intake-panel';
 import type { DrillSummary } from '../cloudflare/store';
 const icon = (name: string) =>
   ({ overview: '◫', plan: '≋', transfers: '⇄', evidence: '▤' })[name] || '·';
@@ -24,7 +25,10 @@ function App() {
     [menu, setMenu] = useState(false),
     [connection, setConnection] = useState<'loading' | 'ready' | 'expired' | 'error'>('loading'),
     [session, setSession] = useState<SessionInfo | null>(null),
-    [drills, setDrills] = useState<DrillSummary[]>([]);
+    [drills, setDrills] = useState<DrillSummary[]>([]),
+    [intakeRevision, setIntakeRevision] = useState(0),
+    [intakeRef, setIntakeRef] = useState<{ id: string; digest: string } | null>(null),
+    [sourceNotes, setSourceNotes] = useState('');
   const expiredToken = useRef<string | null>(null);
   const blocked = busy || connection !== 'ready';
   const running = useRef(false);
@@ -35,6 +39,7 @@ function App() {
     setPending(loadPending(localStorage));
     setDraft(null);
     setChecked(false);
+    setIntakeRef(null);
     setConnection('ready');
     expiredToken.current = null;
   };
@@ -105,7 +110,7 @@ function App() {
         ? `/plans/${ref}/${action}`
         : ['dispatch', 'report', 'arrival', 'cancel'].includes(action)
           ? `/work-orders/${ref}/${action === 'report' ? 'arrival-report' : action}`
-          : `/incidents/${s.id}/${({ facts: 'facts', observe: 'observations', clock: 'clock', plan: 'plans', reconcile: 'reconcile' } as any)[action]}`;
+          : `/incidents/${s.id}/${({ intake: 'intake', facts: 'facts', observe: 'observations', clock: 'clock', plan: 'plans', reconcile: 'reconcile' } as any)[action]}`;
     const { actionId } = await api(`/incidents/${s.id}/actions`, { kind: action });
     const request = {
       route,
@@ -115,6 +120,8 @@ function App() {
     try {
       const out = await commitPending(api, localStorage, request);
       setNotice(`Committed ${action.replaceAll('_', ' ')} · receipt ${out.actionId.slice(0, 8)}`);
+      if (action === 'intake') setIntakeRevision(value => value + 1);
+      return out;
     } finally {
       setPending(loadPending(localStorage));
       await refresh();
@@ -124,12 +131,13 @@ function App() {
     run(async () => {
       if (connection !== 'ready') throw new Error('Connect to the review workspace before starting a drill.');
       if (loadPending(localStorage)) throw new Error('Recover the pending receipt before starting another drill.');
-      const x = await api('/incidents', { scenario: kind, seed });
+      const x = await api('/incidents', { scenario: kind, seed, ...(sourceNotes.trim() ? { sourceNotes } : {}) });
       setS(x);
       localStorage.setItem(CURRENT_KEY, x.id);
       setDrills(await api('/drills'));
       setDraft(null);
       setChecked(false);
+    setIntakeRef(null);
       setTab('overview');
       setNotice('New isolated drill created. All stock and readings are synthetic.');
     });
@@ -282,6 +290,7 @@ function App() {
                 await refresh(event.target.value);
                 setDraft(null);
                 setChecked(false);
+    setIntakeRef(null);
                 setTab('overview');
               })}>
                 {!drills.length && <option value="">No saved drills yet</option>}
@@ -321,6 +330,7 @@ function App() {
                   run(async () => {
                     try {
                       const result = await commitPending(api, localStorage, pending);
+                      if (pending.route.endsWith('/intake')) setIntakeRevision(value => value + 1);
                       setNotice('Original receipt recovered: ' + result.actionId);
                     } finally {
                       setPending(loadPending(localStorage));
@@ -523,6 +533,13 @@ function App() {
                       </article>
                     ))}
                   </div>
+                  <IntakePanel state={s} blocked={blocked} revision={intakeRevision} onAnalyze={mode => void run(async () => { setIntakeRef(null); setChecked(false); await act('intake', { mode }); })} onApply={record => {
+                    if (!record.review?.candidate || record.version !== s.version) return;
+                    setCounts(Object.fromEntries(record.review.candidate.facts.map(fact => [fact.batchId, fact.quantity])));
+                    setIntakeRef({ id: record.actionId, digest: digest(record.review.candidate) });
+                    setChecked(false);
+                    setNotice('Candidates copied for your review. Counts and uncertainty still need your confirmation.');
+                  }} />
                   <div className="two-col">
                     <section className="panel">
                       <div className="panel-title">
@@ -533,7 +550,7 @@ function App() {
                       </div>
                       <blockquote>{s.notes}</blockquote>
                       <p className="muted">
-                        Manual-input arm. No AI extraction has been run. Confirm the source counts
+                        Manual confirmation gate. Check the source quotes and counts
                         before planning.
                       </p>
                       <div className="fact-fields">
@@ -547,9 +564,7 @@ function App() {
                                 step="1"
                                 value={counts[b.id]}
                                 disabled={!s.uncertain}
-                                onChange={(e) =>
-                                  setCounts({ ...counts, [b.id]: Number(e.target.value) })
-                                }
+                                onChange={(e) => { setCounts({ ...counts, [b.id]: Number(e.target.value) }); setIntakeRef(null); }}
                               />
                               <span>crates</span>
                             </div>
@@ -569,7 +584,7 @@ function App() {
                         className="primary"
                         disabled={blocked || !checked || !s.uncertain}
                         onClick={() =>
-                          run(() => act('facts', { confirmed: true, quantities: counts }))
+                          run(() => act('facts', { confirmed: true, quantities: counts, ...(intakeRef ? { intakeId: intakeRef.id, intakeDigest: intakeRef.digest } : {}) }))
                         }
                       >
                         {s.uncertain ? 'Confirm inventory →' : 'Facts confirmed'}
@@ -1008,6 +1023,10 @@ function App() {
                 value={seed}
                 onChange={(e) => setSeed(Number(e.target.value))}
               />
+            </label>
+            <label className="source-notes-field">Optional synthetic source notes
+              <textarea rows={3} maxLength={4000} value={sourceNotes} onChange={event => setSourceNotes(event.target.value)} placeholder="Leave blank to use the scenario note." />
+              <small>Fixture inventory stays at six crates of greens and six crates of tomatoes. Conflicting notes require review.</small>
             </label>
             <button className="outline" disabled={blocked} onClick={newDrill}>
               Create drill →

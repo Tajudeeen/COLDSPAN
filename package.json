@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "worker:check": "wrangler deploy --dry-run --outdir backend-dist",
     "verify:live": "node scripts/verify-live.mjs",
-    "typecheck:worker": "wrangler types && tsc -p tsconfig.worker.json"
+    "typecheck:worker": "wrangler types && tsc -p tsconfig.worker.json",
+    "evaluate:intake": "node --import tsx scripts/evaluate-intake.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

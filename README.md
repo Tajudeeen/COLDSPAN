@@ -23,6 +23,7 @@ npm ci
 npm run typecheck
 npm run typecheck:worker
 npm test
+npm run evaluate:intake
 npm run build
 npm run worker:check
 npm run verify:live
@@ -39,7 +40,13 @@ The live check creates isolated synthetic reviewer data on the deployed API. Cre
 
 `cloudflare/deployed-worker.mjs` remains an immutable copy of the recovered October backend. Parity tests compare the typed store against this copy across all eight scenarios. `evidence/backend-provenance.json` identifies the historical module. The typed source preserves its schema, action identities and payload hashes. The upgrade check starts with a receipt committed by the old backend and recovers that exact receipt after deploying the typed backend.
 
-`wrangler.jsonc` retains the existing compatibility date and both SQLite Durable Object class names. The active build is `coldspan-cf-20261103-3`. Frontend publication retains the existing Site identity in `.openai/hosting.json`. `.github/workflows/verify.yml` runs type checks, tests, the Worker dry run, frontend build and independent evidence replay on pushes and pull requests. It does not deploy or call a model.
+`wrangler.jsonc` retains the existing compatibility date and both SQLite Durable Object class names. The active build is `coldspan-cf-20261103-4`. Frontend publication retains the existing Site identity in `.openai/hosting.json`. `.github/workflows/verify.yml` runs type checks, tests, the Worker dry run, frontend build and independent evidence replay on pushes and pull requests. It does not deploy or call a model.
+
+## Source interpretation and review
+
+The interface now offers source-linked interpretation records and a separate human confirmation gate. An illustrative fixture demonstrates the review path without calling a model. Optional notes are captured in initial-state evidence. The Meta adapter and usage guards are implemented, but live execution remains unavailable because no key is configured and provider calls are disabled.
+
+Interpretations cannot approve transfers, create stock or confirm arrival. A selected candidate is bound to its source, incident version and explicit facts-confirmation action. Schema-two evidence includes interpretation records and is checked by the independent Python verifier. Read [MODEL_INTAKE.md](docs/MODEL_INTAKE.md) for limits, protocol sources and the remaining live-access step.
 
 ## Saved drills and session expiry
 
@@ -53,7 +60,7 @@ An existing access key is never silently replaced after an authentication or exp
 - The frontend is owner-private. The Worker API accepts isolated synthetic reviewer sessions and enforces bearer scope, bounded input, per-IP request gates and quotas. Origin checking is browser protection, not authentication.
 - SQL transactions commit state and its idempotent receipt together. Capacity is scoped to a synthetic drill, not a shared physical warehouse.
 - Python replay establishes internal consistency. Hashes do not prove physical truth, authorship or an external timestamp.
-- Meta integration, model evaluation, production identity, backups, operational alerts and physical integrations remain unfinished.
+- Live Meta validation, actual model evaluation, production identity, backups, operational alerts and physical integrations remain unfinished.
 - Independent prototype work started October 25, 2026. Event registration, selection, permitted reuse and final rules must be established separately. No event submission or qualifying entry is claimed.
 
 See `evidence/VERIFICATION.md` for current observations and verification limits.

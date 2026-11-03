@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Independent replay. Standard library only. Does not import application code."""
-import copy, hashlib, json, sys
+import copy, hashlib, json, sys, re
 
 def canon(x):
     return json.dumps(x, ensure_ascii=False, sort_keys=True, separators=(',', ':'), allow_nan=False)
@@ -13,8 +13,9 @@ def require(ok, reason):
 
 def verify(bundle):
     m=bundle['manifest']; files=bundle['artifacts']
-    require(m['schema']==1 and m['algorithm']=='SHA-256' and m['encoding']=='UTF-8','UNSUPPORTED_SCHEMA')
+    require(type(m['schema'])==int and m['schema'] in [1,2] and m['algorithm']=='SHA-256' and m['encoding']=='UTF-8','UNSUPPORTED_SCHEMA')
     expected={'initial.json','events.json','final.json','limitations.json'}
+    if m['schema']==2: expected.add('interpretations.json')
     require(set(files)==expected and set(m['files'])==expected,'ARTIFACT_SET')
     for name, content in files.items():
         require('/' not in name and '\\' not in name and '..' not in name,'UNSAFE_PATH')
@@ -110,7 +111,44 @@ def verify(bundle):
         elif k!='CLOCK_ADVANCED':raise ValueError('UNKNOWN_EVENT')
         s['version']+=1;s['plans']=list(plans.values());s['work']=list(work.values());s['events'].append(e);quantities()
     require(canon(s)==canon(final),'FINAL_STATE_MISMATCH')
-    return {'status':'VERIFIED_REPLAY','events':len(events),'quantity':sum(b['quantity'] for b in s['batches']),'incidentStatus':s['status'],'limitations':'Internal synthetic consistency. No physical validation or independent signature.'}
+    records=json.loads(files['interpretations.json']) if m['schema']==2 else []
+    require(type(records)==list and len(records)<=10,'INVALID_INTERPRETATIONS')
+    seen_intakes=set()
+    number_words=dict(zip('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty'.split(),range(21)))
+    for record in records:
+        require(record['actionId'] not in seen_intakes,'DUPLICATE_INTAKE');seen_intakes.add(record['actionId'])
+        require(record['incidentId']==s['id'] and type(record['version'])==int and 0<=record['version']<=s['version'],'INTAKE_SCOPE')
+        source=record['source']
+        require(source=={'id':'incident-notes','text':s['notes'],'hash':sha(s['notes'])},'INTAKE_SOURCE_MISMATCH')
+        require(record['mode'] in ['FIXTURE_REPLAY','META'],'INTAKE_MODE')
+        require(record['status'] in ['PENDING','NEEDS_REVIEW','UNAVAILABLE','FAILED','UNKNOWN_OUTCOME'],'INTAKE_STATUS')
+        if record['mode']=='FIXTURE_REPLAY' and record['provider']:
+            require(record['provider']['model'] is None and record['provider']['usage'] is None,'FIXTURE_CANNOT_CLAIM_MODEL')
+        review=record.get('review');candidate=review.get('candidate') if review else None
+        if review:
+            require(review['status']=='NEEDS_REVIEW','MODEL_CANNOT_APPROVE')
+        if candidate:
+            require(set(candidate)=={'facts','questions'} and len(candidate['facts'])<=8,'INTAKE_SCHEMA')
+            for fact in candidate['facts']:
+                require(set(fact)=={'batchId','quantity','unit','sourceId','quote','confidence'},'INTAKE_FACT_SCHEMA')
+                require(fact['batchId'] in [b['id'] for b in s['batches']] and fact['sourceId']=='incident-notes' and fact['unit']=='crate','INTAKE_FACT_BINDING')
+                require(type(fact['quantity'])==int and 0<=fact['quantity']<=100000 and fact['confidence'] in ['supported','uncertain'],'INTAKE_FACT_VALUE')
+                quote=fact['quote'];require(type(quote)==str and len(quote)>=3 and s['notes'].count(quote)==1,'INTAKE_QUOTE_MISMATCH')
+                bound_batch=next(batch for batch in s['batches'] if batch['id']==fact['batchId'])
+                aliases=['leafy greens','greens','leaf-01'] if bound_batch['class']=='leaf' else ['tomato','tomatoes','fruit-02'] if bound_batch['class']=='fruit' else [bound_batch['name'].lower(),bound_batch['id']]
+                require(any(re.search(r'\b'+re.escape(alias)+r'\b',quote.lower()) for alias in aliases),'INTAKE_BATCH_NOT_GROUNDED')
+                numbers=re.findall(r'\b(?:\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b',quote.lower())
+                require(numbers and all((number_words[n] if n in number_words else int(n))==fact['quantity'] for n in numbers),'INTAKE_QUANTITY_NOT_GROUNDED')
+                require(not re.search(r'\b(not|never|ignore|example|previously|instead|kg|kilograms?|pounds?|litres?|boxes?)\b|\d[.,]\d|-\d',quote.lower()),'INTAKE_UNSUPPORTED_QUOTE')
+                if re.search(r'\b(looks? like|maybe|about|roughly|uncertain|estimate|confirm|not sure|possibly)\b|\?',quote.lower()):require(fact['confidence']=='uncertain','INTAKE_INVENTED_CERTAINTY')
+            if review['canApply']:require(all(any(fact['batchId']==batch['id'] for fact in candidate['facts']) for batch in s['batches']),'INTAKE_INCOMPLETE_FACTS')
+        human=record.get('humanReview')
+        if human:
+            require(candidate and review['canApply'] and record['status']=='NEEDS_REVIEW','INTAKE_NOT_REVIEWABLE')
+            event=next((event for event in events if event['actionId']==human['actionId'] and event['kind']=='FACTS_CONFIRMED'),None)
+            require(event and event['priorVersion']==human['version']==record['version'] and event['data']['quantities']==human['quantities'],'INTAKE_HUMAN_REVIEW_BINDING')
+            require(all(any(fact['batchId']==bid and fact['quantity']==quantity for fact in candidate['facts']) for bid,quantity in human['quantities'].items()),'INTAKE_REVIEW_QUANTITY')
+    return {'status':'VERIFIED_REPLAY','events':len(events),'quantity':sum(b['quantity'] for b in s['batches']),'incidentStatus':s['status'],'interpretations':len(records),'limitations':'Internal synthetic consistency. No physical validation, independently authenticated model execution or independent signature.'}
 
 if __name__=='__main__':
     try:

@@ -1,4 +1,5 @@
 import { digest, DomainError, evidence, need, scenario, transition, type State } from '../src/domain';
+import { IntakeStore } from './intake-store';
 
 export type SqlValue = string | number | null;
 export interface SqlPort {
@@ -12,9 +13,11 @@ type Meta = { tenant: string; expires: number };
 type IncidentRow = { initial: string; state: string; version: number };
 export type Reply = { ok: true; data: unknown; status: number } | { ok: false; code: string; detail: string; status: number };
 export type DrillSummary = { id: string; scenario: string; seed: number; status: string; version: number; clock: number; createdAt: number };
-const kinds = ['facts', 'observe', 'clock', 'plan', 'approve', 'reserve', 'dispatch', 'report', 'arrival', 'cancel', 'reconcile'];
+const kinds = ['facts', 'observe', 'clock', 'plan', 'approve', 'reserve', 'dispatch', 'report', 'arrival', 'cancel', 'reconcile', 'intake'];
 export class WorkspaceStore {
+  readonly intakes: IntakeStore;
   constructor(private storage: StoragePort) {
+    this.intakes = new IntakeStore(storage);
     storage.sql.exec('CREATE TABLE IF NOT EXISTS meta (id INTEGER PRIMARY KEY CHECK(id=1), tenant TEXT NOT NULL, expires INTEGER NOT NULL)');
     storage.sql.exec('CREATE TABLE IF NOT EXISTS incidents (id TEXT PRIMARY KEY, initial TEXT NOT NULL, state TEXT NOT NULL, version INTEGER NOT NULL, created INTEGER NOT NULL)');
     storage.sql.exec('CREATE TABLE IF NOT EXISTS tokens (id TEXT PRIMARY KEY, incident TEXT NOT NULL, kind TEXT NOT NULL)');
@@ -67,6 +70,10 @@ export class WorkspaceStore {
       need(this.count('incidents') < 100, 'DRILL_QUOTA', 'This reviewer workspace is limited to 100 synthetic drills.');
       need(typeof body.scenario === 'string' && typeof body.seed === 'number' && Number.isInteger(body.seed) && body.seed >= 0 && body.seed < 100_000, 'INVALID_SCENARIO_INPUT');
       const id = crypto.randomUUID(), state = scenario(id, meta.tenant, body.scenario, body.seed);
+      if (body.sourceNotes !== undefined) {
+        need(typeof body.sourceNotes === 'string' && body.sourceNotes.trim().length > 0 && body.sourceNotes.length <= 4000, 'INVALID_SOURCE_NOTES');
+        state.notes = body.sourceNotes;
+      }
       this.storage.sql.exec('INSERT INTO incidents VALUES(?,?,?,?,?)', id, JSON.stringify(state), JSON.stringify(state), state.version, Date.now());
       return state;
     }
@@ -80,7 +87,8 @@ export class WorkspaceStore {
     const state: State = JSON.parse(row.state);
     need(state.tenant === meta.tenant, 'SCOPE_MISMATCH');
     if (method === 'GET' && parts.length === 2 && parts[0] === 'incidents') return state;
-    if (method === 'GET' && parts.length === 3 && parts[0] === 'incidents' && parts[2] === 'evidence') return evidence(JSON.parse(row.initial), state);
+    if (method === 'GET' && parts.length === 3 && parts[0] === 'incidents' && parts[2] === 'evidence') return this.intakes.addEvidence(evidence(JSON.parse(row.initial), state), id);
+    if (method === 'GET' && parts.length === 3 && parts[0] === 'incidents' && parts[2] === 'intake') return this.intakes.list(id);
     if (method === 'POST' && parts.length === 3 && parts[0] === 'incidents' && parts[2] === 'actions') {
       need(typeof body.kind === 'string' && kinds.includes(body.kind), 'UNKNOWN_ACTION');
       need(this.count('tokens') < 15_000, 'ACTION_QUOTA');
@@ -115,6 +123,7 @@ export class WorkspaceStore {
       workerFence = (lease?.fence || 0) + 1;
       this.storage.sql.exec('INSERT INTO leases VALUES(?,?,?) ON CONFLICT(incident) DO UPDATE SET fence=excluded.fence,expires=excluded.expires', id, workerFence, Date.now() + 10_000);
     }
+    if (kind === 'facts') this.intakes.bindHumanReview(state, payload, body.actionId);
     const result = transition(state, kind, kind === 'arrival' ? { ...payload, authority: 'simulator' } : payload, body.actionId);
     const receipt = { actionId: body.actionId, kind, result, version: state.version, ...(workerFence === undefined ? {} : { workerFence }), capturedAt: new Date().toISOString(), mode: 'CLOUDFLARE_SYNTHETIC_SIMULATOR' };
     this.storage.sql.exec('UPDATE incidents SET state=?,version=? WHERE id=?', JSON.stringify(state), state.version, id);
@@ -125,7 +134,7 @@ export class WorkspaceStore {
     this.storage.transactionSync(() => {
       const meta = this.rows<{ expires: number }>('SELECT expires FROM meta WHERE id=1')[0];
       if (meta && meta.expires <= now) {
-        for (const table of ['incidents', 'tokens', 'receipts', 'leases']) this.storage.sql.exec(`DELETE FROM ${table}`);
+        for (const table of ['incidents', 'tokens', 'receipts', 'leases', 'interpretations']) this.storage.sql.exec(`DELETE FROM ${table}`);
         this.storage.sql.exec('UPDATE meta SET expires=0 WHERE id=1');
       }
     });
