@@ -1,0 +1,82 @@
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+const base = 'https://coldspan-api.tajudeenowoeteniyan.workers.dev/api';
+const origin = 'https://coldspan-preview.deeen-code.chatgpt.site';
+async function call(path, body, token, requestOrigin = origin) {
+  const response = await fetch(base + path, { method: body === undefined ? 'GET' : 'POST', headers: { Origin: requestOrigin, ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json', 'X-Coldspan-Intent': 'operator' }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20000) });
+  return { status: response.status, data: await response.json() };
+}
+const checks = [];
+async function check(name, run) { await run(); checks.push({ name, status: 'VERIFIED_HOSTED' }); console.log('PASS', name); }
+const health = await call('/health'); assert.equal(health.data.status, 'ok');
+const { data: reviewer } = await call('/session', {});
+const { data: stranger } = await call('/session', {});
+assert.match(reviewer.token, /^cs_[a-f0-9]{64}$/);
+const api = async (path, body) => {
+  const r = await call(path, body, reviewer.token);
+  if (r.status >= 400) throw Object.assign(new Error(r.data.code), { code: r.data.code });
+  return r.data;
+};
+async function drill(scenario) {
+  let state = await api('/incidents', { scenario, seed: 7 });
+  const id = state.id;
+  const get = async () => state = await api(`/incidents/${id}`);
+  const prepare = async (kind, route, payload = {}) => ({ route, body: { actionId: (await api(`/incidents/${id}/actions`, { kind })).actionId, expectedVersion: state.version, incidentId: id, payload } });
+  const act = async (kind, route, payload = {}) => { const req = await prepare(kind, route, payload); const result = await api(req.route, req.body); await get(); return { req, result }; };
+  await act('facts', `/incidents/${id}/facts`, { confirmed: true, quantities: { 'leaf-01': 6, 'fruit-02': 6 } });
+  await act('plan', `/incidents/${id}/plans`);
+  return { id, get, prepare, act, state: () => state };
+}
+let completed;
+await check('complete outage, duplicate receipt and independent replay export', async () => {
+  const d = await drill('outage');
+  const p = d.state().plans.at(-1);
+  await d.act('approve', `/plans/${p.id}/approve`, { digest: p.digest });
+  await d.act('reserve', `/plans/${p.id}/reserve`, { digest: p.digest });
+  for (const w of [...d.state().work]) {
+    const { req, result } = await d.act('dispatch', `/work-orders/${w.id}/dispatch`, { fence: w.fence });
+    assert.deepEqual(await api(req.route, req.body), result);
+    await assert.rejects(api(req.route, { ...req.body, payload: { fence: w.fence, changed: true } }), /ACTION_PAYLOAD_CONFLICT/);
+    await d.act('clock', `/incidents/${d.id}/clock`, { minutes: 5 });
+    await d.act('report', `/work-orders/${w.id}/arrival-report`, { fence: w.fence, actor: w.transfer.responder });
+    const forged = await d.prepare('arrival', `/work-orders/${w.id}/arrival`, { fence: w.fence, authority: 'simulator' });
+    await assert.rejects(api(forged.route, forged.body), /SIMULATOR_AUTHORITY_REQUIRED/);
+    await d.act('arrival', `/work-orders/${w.id}/arrival`, { fence: w.fence });
+  }
+  await d.act('reconcile', `/incidents/${d.id}/reconcile`);
+  assert.equal(d.state().status, 'RECONCILED');
+  assert.equal(d.state().batches.reduce((n, b) => n + Object.values(b.locations).reduce((a, q) => a + q, 0), 0), 12);
+  completed = await api(`/incidents/${d.id}/evidence`);
+  await writeFile('evidence/cloudflare-hosted-completed.json', JSON.stringify(completed, null, 2));
+  assert.equal((await call(`/incidents/${d.id}`, undefined, stranger.token)).status, 404);
+});
+await check('healthy control reconciles with no transfers', async () => {
+  const d = await drill('healthy');
+  assert.equal(d.state().plans.at(-1).transfers.length, 0);
+  await d.act('reconcile', `/incidents/${d.id}/reconcile`);
+  assert.equal(d.state().status, 'RECONCILED');
+});
+await check('concurrent reservation commits once and retains exact receipt', async () => {
+  const d = await drill('outage'); const p = d.state().plans.at(-1);
+  await d.act('approve', `/plans/${p.id}/approve`, { digest: p.digest });
+  const a = await d.prepare('reserve', `/plans/${p.id}/reserve`, { digest: p.digest });
+  const b = await d.prepare('reserve', `/plans/${p.id}/reserve`, { digest: p.digest });
+  const results = await Promise.all([call(a.route, a.body, reviewer.token), call(b.route, b.body, reviewer.token)]);
+  assert.equal(results.filter(r => r.status === 200).length, 1);
+  assert.equal(results.find(r => r.status === 409).data.code, 'VERSION_CONFLICT');
+  const win = results[0].status === 200 ? a : b;
+  assert.deepEqual(await api(win.route, win.body), results.find(r => r.status === 200).data);
+});
+await check('disallowed origins and missing review credentials are refused', async () => {
+  assert.equal((await call('/incidents')).status, 401);
+  assert.equal((await call('/incidents', undefined, reviewer.token, 'https://untrusted.example')).status, 403);
+});
+await check('browser preflight permits only the declared origin and request headers', async () => {
+  const response = await fetch(base + '/incidents', { method: 'OPTIONS', headers: { Origin: origin, 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'authorization,content-type,x-coldspan-intent' }, signal: AbortSignal.timeout(20000) });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), origin);
+  const headers = response.headers.get('Access-Control-Allow-Headers').toLowerCase();
+  for (const name of ['authorization', 'content-type', 'x-coldspan-intent']) assert(headers.includes(name));
+});
+await writeFile('evidence/cloudflare-live-checks.json', JSON.stringify({ checkedAt: new Date().toISOString(), build: health.data.build, checks, limitations: 'Synthetic workflow. No Meta execution, physical validation or real dispatch. Tokens are never saved in this report.' }, null, 2));
+console.log(`COMPLETE ${checks.length}/${checks.length}`);

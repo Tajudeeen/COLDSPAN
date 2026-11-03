@@ -1,0 +1,25 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> coldspan-cloudflare@1.0.0 test
+> node --import tsx --test tests/*.test.ts
+
+✔ SHA-256 matches standard test vector (1.39399ms)
+✔ interactive preview completes outage (12.405711ms)
+✔ interactive preview completes healthy (1.177596ms)
+✔ remote transport attaches the review bearer and explicit mutation intent (6.274747ms)
+✔ a committed action with a lost response keeps its identity across journal reload (1.248292ms)
+✔ uncertain outcome preserves pending identity: Error INTERNAL_ERROR (0.285849ms)
+✔ uncertain outcome preserves pending identity: SyntaxError Invalid response JSON (0.303126ms)
+✔ uncertain outcome preserves pending identity: TimeoutError Timed out (0.12508ms)
+✔ a definitive version refusal clears the pending journal (0.407967ms)
+✔ a malformed success cannot discard an unresolved action (0.28286ms)
+✔ concurrent tabs cannot erase another unresolved action journal (0.367488ms)
+✔ legacy unresolved request is migrated without replacing its identity (0.238374ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 211.97116

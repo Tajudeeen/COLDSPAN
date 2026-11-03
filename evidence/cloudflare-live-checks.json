@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-11-03T03:33:41.523Z",
+  "build": "coldspan-cf-20261026-2",
+  "checks": [
+    {
+      "name": "complete outage, duplicate receipt and independent replay export",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "healthy control reconciles with no transfers",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "concurrent reservation commits once and retains exact receipt",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "disallowed origins and missing review credentials are refused",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "browser preflight permits only the declared origin and request headers",
+      "status": "VERIFIED_HOSTED"
+    }
+  ],
+  "limitations": "Synthetic workflow. No Meta execution, physical validation or real dispatch. Tokens are never saved in this report."
+}

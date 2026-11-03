@@ -1,0 +1,9 @@
+{
+  "recoveredAt": "2026-11-03T03:28:53.433389+00:00",
+  "worker": "coldspan-api",
+  "observedBuild": "coldspan-cf-20261026-2",
+  "file": "cloudflare/deployed-worker.mjs",
+  "sha256": "cb485e1cf122da6d656090931cf3da959830fcfdacf054b3303877bce07f92b9",
+  "source": "Cloudflare Worker script download",
+  "note": "Recovered deployed runtime. Original migration TypeScript and prior uncommitted test files were not available."
+}
