@@ -5,7 +5,7 @@ Checked November 3, 2026. Active backend build: `coldspan-cf-20261103-3`.
 ## Current checks
 
 - TypeScript checks cover the interface and typed Worker, using Wrangler-generated binding and runtime types.
-- Thirty-four automated tests include eight parity scenarios against the recovered backend, SQL rollback on injected receipt failure, persisted retry after disk SQLite restart, competing reservation versions, isolated drill history, expiry cleanup, transport recovery and workspace lifecycle.
+- Thirty-six automated tests include eight parity scenarios against the recovered backend, SQL rollback on injected receipt failure, persisted retry after disk SQLite restart, competing reservation versions, isolated drill history, expiry cleanup, transport recovery and workspace lifecycle. A cross-module test runs the actual remote adapter and workspace bootstrap against the transactional store.
 - The SQLite adapter executes real local SQLite transactions. It is not a substitute for a Cloudflare runtime test. Hosted HTTP checks independently exercise the deployed Worker.
 - The live suite holds a receipt committed by the previous backend across the actual typed-backend deployment, then verifies byte-equivalent receipt fields and persisted state. It also checks the full outage, healthy control, reservation race, authority refusal, isolation, CORS preflight, session metadata, compact history and expired-session refusal.
 - `cloudflare-live-checks.json` records the actual hosted observations. `cloudflare-hosted-completed.json` is the exported outage evidence. Python replay is recorded in `cloudflare-hosted-replay.json`.

@@ -4,6 +4,8 @@ import { ApiError, SESSION_KEY, createRemoteApi } from '../web/remote-api';
 import { CURRENT_KEY, loadWorkspace, restartExpiredReview } from '../web/workspace';
 import { pendingKey, type PendingRequest } from '../web/action-journal';
 import { scenario } from '../src/domain';
+import { WorkspaceStore } from '../cloudflare/store';
+import { sqliteStorage } from './sqlite';
 function memory() {
   const values = new Map<string, string>();
   return { get length() { return values.size; }, key: (index: number) => [...values.keys()][index] ?? null, getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
@@ -70,4 +72,29 @@ test('a transient bootstrap failure leaves the existing key available for retry'
   assert.equal(storage.getItem(SESSION_KEY), 'existing-key');
   failed = false;
   assert.equal((await loadWorkspace(api, storage)).incident, null);
+});
+test('the real remote adapter bootstraps and restores drill selection against transactional storage', async () => {
+  const storage = memory(); const database = sqliteStorage(); const store = new WorkspaceStore(database.storage);
+  const token = 'cs_' + 'a'.repeat(64);
+  const api = createRemoteApi(storage, async (url, options) => {
+    const path = new URL(String(url)).pathname.replace(/^\/api/, '');
+    if (path === '/session' && options?.method === 'POST') {
+      const expiresAt = store.initialize('review');
+      return Response.json({ token, expiresAt, tenant: 'review' }, { status: 201 });
+    }
+    assert.equal(new Headers(options?.headers).get('Authorization'), 'Bearer ' + token);
+    const result = store.request(options?.method ?? 'GET', path, options?.body ? JSON.parse(String(options.body)) : {});
+    return Response.json(result.ok ? result.data : { code: result.code, detail: result.detail }, { status: result.status });
+  });
+  try {
+    assert.equal((await loadWorkspace(api, storage)).incident, null);
+    const earlier = await api('/incidents', { scenario: 'healthy', seed: 1 });
+    await api('/incidents', { scenario: 'outage', seed: 2 });
+    storage.setItem(CURRENT_KEY, earlier.id);
+    const reloaded = await loadWorkspace(api, storage);
+    assert.equal(reloaded.drills.length, 2);
+    assert.equal(reloaded.incident?.id, earlier.id);
+    assert.equal(reloaded.session.tenant, 'review');
+    assert.equal(storage.getItem(SESSION_KEY), token);
+  } finally { database.db.close(); }
 });

@@ -7,6 +7,16 @@ const memory = () => {
   return { get length() { return values.size; }, key: (index: number) => [...values.keys()][index] ?? null, getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
 };
 const request = { route: '/incidents/demo/clock', body: { actionId: 'issued-id', expectedVersion: 3, incidentId: 'demo', payload: { minutes: 5 } } };
+test('session metadata is read without expecting or replacing an access key', async () => {
+  const storage = memory(); const token = 'cs_' + 'a'.repeat(64); storage.setItem(SESSION_KEY, token);
+  const metadata = { tenant: 'review', expiresAt: Date.now() + 1000, mode: 'SYNTHETIC_SIMULATOR', model: 'UNAVAILABLE' };
+  const api = createRemoteApi(storage, async (_url, options) => {
+    assert.equal(options?.method, 'GET');
+    return Response.json(metadata);
+  });
+  assert.deepEqual(await api('/session'), metadata);
+  assert.equal(storage.getItem(SESSION_KEY), token);
+});
 test('remote transport attaches the review bearer and explicit mutation intent', async () => {
   const storage = memory();
   storage.setItem(SESSION_KEY, 'cs_' + 'a'.repeat(64));
