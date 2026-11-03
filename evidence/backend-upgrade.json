@@ -1,0 +1,18 @@
+{
+  "worker": "coldspan-api",
+  "build": "coldspan-cf-20261103-3",
+  "deploymentId": "8cbb78bb74ff4e5992623369a4646d6e",
+  "modifiedOn": "2026-11-03T04:03:13.462057Z",
+  "exportsReconciliation": {
+    "created": [],
+    "updated": [],
+    "deleted": [],
+    "renamed": [],
+    "transferred": [],
+    "transfer_pending": [],
+    "warnings": [],
+    "info": [],
+    "removable_entries": []
+  },
+  "limitations": "Synthetic workflow. No physical validation or Meta execution."
+}

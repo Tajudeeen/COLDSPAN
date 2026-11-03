@@ -8,8 +8,9 @@
     "build": "vite build",
     "test": "node --import tsx --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "worker:check": "wrangler deploy --dry-run",
-    "verify:live": "node scripts/verify-live.mjs"
+    "worker:check": "wrangler deploy --dry-run --outdir backend-dist",
+    "verify:live": "node scripts/verify-live.mjs",
+    "typecheck:worker": "wrangler types && tsc -p tsconfig.worker.json"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

@@ -2,8 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { State, Transfer } from '../src/domain';
 import './style.css';
-import { remoteApi, downloadEvidence } from './remote-api';
+import { remoteApi, downloadEvidence, ApiError, SESSION_KEY } from './remote-api';
 import { commitPending, loadPending, PENDING_KEY, PENDING_PREFIX, type PendingRequest } from './action-journal';
+import { loadWorkspace, restartExpiredReview, CURRENT_KEY, type SessionInfo, type WorkspaceSnapshot } from './workspace';
+import type { DrillSummary } from '../cloudflare/store';
 const icon = (name: string) =>
   ({ overview: '◫', plan: '≋', transfers: '⇄', evidence: '▤' })[name] || '·';
 const api = remoteApi;
@@ -19,29 +21,54 @@ function App() {
     [counts, setCounts] = useState<Record<string, number>>({ 'leaf-01': 6, 'fruit-02': 6 }),
     [draft, setDraft] = useState<Transfer[] | null>(null),
     [pending, setPending] = useState<PendingRequest | null>(null),
-    [menu, setMenu] = useState(false);
+    [menu, setMenu] = useState(false),
+    [connection, setConnection] = useState<'loading' | 'ready' | 'expired' | 'error'>('loading'),
+    [session, setSession] = useState<SessionInfo | null>(null),
+    [drills, setDrills] = useState<DrillSummary[]>([]);
+  const expiredToken = useRef<string | null>(null);
+  const blocked = busy || connection !== 'ready';
   const running = useRef(false);
+  const applyWorkspace = (snapshot: WorkspaceSnapshot) => {
+    setSession(snapshot.session);
+    setDrills(snapshot.drills);
+    setS(snapshot.incident);
+    setPending(loadPending(localStorage));
+    setDraft(null);
+    setChecked(false);
+    setConnection('ready');
+    expiredToken.current = null;
+  };
+  const reportError = (error: unknown) => {
+    setErr(String(error));
+    if (error instanceof ApiError && error.code === 'SESSION_EXPIRED') {
+      setConnection('expired');
+      expiredToken.current = localStorage.getItem(SESSION_KEY);
+    } else if (error instanceof ApiError && error.status === 401) {
+      setConnection('error');
+    }
+  };
+  const connect = async () => {
+    setConnection('loading');
+    setErr('');
+    try {
+      setPending(loadPending(localStorage));
+      applyWorkspace(await loadWorkspace(api, localStorage));
+    } catch (error) {
+      setConnection('error');
+      reportError(error);
+    }
+  };
   useEffect(() => {
-    (async () => {
-      try {
-        setPending(loadPending(localStorage));
-        try {
-          const list = await api('/incidents');
-          setS(
-            list.find((i: State) => i.id === localStorage.getItem('coldspan.cloud-current.v1')) ||
-              list.at(-1) ||
-              null,
-          );
-        } catch (e) {
-          if (!String(e).includes('SESSION_REQUIRED')) throw e;
-          await api('/session', {});
-        }
-      } catch (e) {
-        setErr(String(e));
-      }
-    })();
+    void connect();
     const syncPending = (event: StorageEvent) => {
       if (event.key === PENDING_KEY || event.key?.startsWith(PENDING_PREFIX)) setPending(loadPending(localStorage));
+      if (event.key === SESSION_KEY || event.key === null) {
+        setConnection('error');
+        setS(null);
+        setDrills([]);
+        setSession(null);
+        setErr('The review session changed in another tab. Refresh the workspace before continuing.');
+      }
     };
     window.addEventListener('storage', syncPending);
     return () => window.removeEventListener('storage', syncPending);
@@ -50,7 +77,8 @@ function App() {
     if (id) {
       const x = await api('/incidents/' + id);
       setS(x);
-      localStorage.setItem('coldspan.cloud-current.v1', id);
+      localStorage.setItem(CURRENT_KEY, id);
+      setDrills(await api('/drills'));
     }
   };
   const run = async (fn: () => Promise<void>) => {
@@ -62,7 +90,7 @@ function App() {
     try {
       await fn();
     } catch (e) {
-      setErr(String(e));
+      reportError(e);
     } finally {
       running.current = false;
       setBusy(false);
@@ -70,6 +98,7 @@ function App() {
   };
   const act = async (action: string, payload: any = {}, ref?: string) => {
     if (!s) return;
+    if (connection !== 'ready') throw new Error('Connect to the review workspace before making changes.');
     if (loadPending(localStorage)) throw new Error('Recover the pending receipt before another action.');
     const route =
       action === 'approve' || action === 'reserve'
@@ -93,10 +122,12 @@ function App() {
   };
   const newDrill = () =>
     run(async () => {
+      if (connection !== 'ready') throw new Error('Connect to the review workspace before starting a drill.');
       if (loadPending(localStorage)) throw new Error('Recover the pending receipt before starting another drill.');
       const x = await api('/incidents', { scenario: kind, seed });
       setS(x);
-      localStorage.setItem('coldspan.cloud-current.v1', x.id);
+      localStorage.setItem(CURRENT_KEY, x.id);
+      setDrills(await api('/drills'));
       setDraft(null);
       setChecked(false);
       setTab('overview');
@@ -240,11 +271,39 @@ function App() {
             <span>Synthetic drill. State and retry receipts are saved on Cloudflare for seven days.</span>
             <span className="strip-end">PREVIEW · MODEL UNAVAILABLE</span>
           </div>
+          <section className="workspace-tools" aria-label="Saved workspace">
+            <div role="status">
+              <strong>{connection === 'ready' ? 'Cloudflare connected' : connection === 'loading' ? 'Connecting to your review…' : connection === 'expired' ? 'Review expired' : 'Connection needs attention'}</strong>
+              <small>{session && connection === 'ready' ? 'Access expires ' + new Date(session.expiresAt).toLocaleString() : 'Each review keeps its own synthetic drills for seven days.'}</small>
+            </div>
+            <label>
+              Saved drill
+              <select value={s?.id ?? ''} disabled={blocked || !drills.length} onChange={event => void run(async () => {
+                await refresh(event.target.value);
+                setDraft(null);
+                setChecked(false);
+                setTab('overview');
+              })}>
+                {!drills.length && <option value="">No saved drills yet</option>}
+                {drills.map(drill => <option key={drill.id} value={drill.id}>{drill.scenario.replaceAll('-', ' ')} · {drill.status.replaceAll('_', ' ')} · seed {drill.seed} · {drill.id.slice(0, 8)}</option>)}
+              </select>
+            </label>
+            <button className="outline" disabled={busy} onClick={() => void run(connect)}>Refresh workspace</button>
+          </section>
+          {connection === 'expired' && <div className="alert" role="alert">
+            This review has expired. Starting another review creates a separate workspace. Any unresolved action identities are retained in this browser as expired-review records. Expired cloud data cannot be recovered here.
+            <button disabled={busy} onClick={() => void run(async () => {
+              const token = expiredToken.current;
+              if (!token) throw new Error('Refresh the workspace before starting another review.');
+              applyWorkspace(await restartExpiredReview(api, localStorage, token));
+              setNotice('New isolated review opened. Previous unresolved identities were retained locally.');
+            })}>Start a new review</button>
+          </div>}
           {err && (
             <div className="alert error" role="alert">
               {err}
-              <button onClick={() => run(() => refresh())} disabled={busy}>
-                Refresh state
+              <button onClick={() => run(connect)} disabled={busy}>
+                Retry connection / refresh workspace
               </button>
             </div>
           )}
@@ -257,7 +316,7 @@ function App() {
             <div className="alert">
               An action receipt is unresolved. Retry its original identity before continuing.
               <button
-                disabled={busy}
+                disabled={blocked}
                 onClick={() =>
                   run(async () => {
                     try {
@@ -282,8 +341,8 @@ function App() {
                 Open an outage drill with 12 crates, three rooms, two responders and two simulated
                 vans. Nothing moves until you approve it.
               </p>
-              <button className="primary" onClick={newDrill} disabled={busy}>
-                Start your first drill →
+              <button className="primary" onClick={newDrill} disabled={blocked}>
+                {connection === 'loading' ? 'Connecting…' : 'Start your first drill →'}
               </button>
             </section>
           ) : (
@@ -311,7 +370,7 @@ function App() {
                   </div>
                   <button
                     className="text-button"
-                    disabled={busy || s.status === 'RECONCILED'}
+                    disabled={blocked || s.status === 'RECONCILED'}
                     onClick={() => run(() => act('clock', { minutes: 5 }))}
                   >
                     Advance 5 min ↗
@@ -431,7 +490,7 @@ function App() {
                         </div>
                         <div className="room-actions">
                           <button
-                            disabled={busy || s.status === 'RECONCILED'}
+                            disabled={blocked || s.status === 'RECONCILED'}
                             onClick={() =>
                               run(() =>
                                 act('observe', {
@@ -446,7 +505,7 @@ function App() {
                           </button>
                           {i > 0 && (
                             <button
-                              disabled={busy || s.status === 'RECONCILED'}
+                              disabled={blocked || s.status === 'RECONCILED'}
                               onClick={() =>
                                 run(() =>
                                   act('observe', {
@@ -508,7 +567,7 @@ function App() {
                       </label>
                       <button
                         className="primary"
-                        disabled={busy || !checked || !s.uncertain}
+                        disabled={blocked || !checked || !s.uncertain}
                         onClick={() =>
                           run(() => act('facts', { confirmed: true, quantities: counts }))
                         }
@@ -559,7 +618,7 @@ function App() {
                   <div className="action-row">
                     <button
                       className="primary"
-                      disabled={busy || s.uncertain || s.status === 'RECONCILED'}
+                      disabled={blocked || s.uncertain || s.status === 'RECONCILED'}
                       onClick={() =>
                         run(async () => {
                           await act('plan', {});
@@ -633,7 +692,7 @@ function App() {
                       <div className="action-row">
                         <button
                           className="primary"
-                          disabled={busy || plan.approved || s.status === 'RECONCILED'}
+                          disabled={blocked || plan.approved || s.status === 'RECONCILED'}
                           onClick={() =>
                             run(() => act('approve', { digest: plan.digest }, plan.id))
                           }
@@ -643,7 +702,7 @@ function App() {
                         <button
                           className="outline"
                           disabled={
-                            busy ||
+                            blocked ||
                             !plan.approved ||
                             s.status === 'RECONCILED' ||
                             s.work.some((w) => w.planId === plan.id && w.state !== 'CANCELLED')
@@ -659,7 +718,7 @@ function App() {
                         </button>
                         <button
                           className="text-button"
-                          disabled={busy || s.status === 'RECONCILED'}
+                          disabled={blocked || s.status === 'RECONCILED'}
                           onClick={() => run(() => act('reconcile'))}
                         >
                           Reconcile no-action drill
@@ -711,7 +770,7 @@ function App() {
                       ))}
                       <button
                         className="primary"
-                        disabled={busy}
+                        disabled={blocked}
                         onClick={() =>
                           run(async () => {
                             await act('plan', { transfers: draft, replacesPlanId: plan?.id });
@@ -781,7 +840,7 @@ function App() {
                               <>
                                 <button
                                   className="primary"
-                                  disabled={busy}
+                                  disabled={blocked}
                                   onClick={() =>
                                     run(() => act('dispatch', { fence: w.fence }, w.id))
                                   }
@@ -790,7 +849,7 @@ function App() {
                                 </button>
                                 <button
                                   className="text-button"
-                                  disabled={busy}
+                                  disabled={blocked}
                                   onClick={() => run(() => act('cancel', { fence: w.fence }, w.id))}
                                 >
                                   Release hold
@@ -800,7 +859,7 @@ function App() {
                             {w.state === 'DISPATCHED' && (
                               <button
                                 className="primary"
-                                disabled={busy}
+                                disabled={blocked}
                                 onClick={() =>
                                   run(() =>
                                     act(
@@ -817,7 +876,7 @@ function App() {
                             {w.state === 'ARRIVAL_REPORTED' && (
                               <button
                                 className="primary"
-                                disabled={busy}
+                                disabled={blocked}
                                 onClick={() => run(() => act('arrival', { fence: w.fence }, w.id))}
                               >
                                 Check simulator & confirm →
@@ -844,7 +903,7 @@ function App() {
                     </div>
                     <button
                       className="primary"
-                      disabled={busy || s.status === 'RECONCILED'}
+                      disabled={blocked || s.status === 'RECONCILED'}
                       onClick={() => run(() => act('reconcile'))}
                     >
                       {s.status === 'RECONCILED' ? 'Reconciled ✓' : 'Reconcile inventory →'}
@@ -950,7 +1009,7 @@ function App() {
                 onChange={(e) => setSeed(Number(e.target.value))}
               />
             </label>
-            <button className="outline" disabled={busy} onClick={newDrill}>
+            <button className="outline" disabled={blocked} onClick={newDrill}>
               Create drill →
             </button>
           </section>

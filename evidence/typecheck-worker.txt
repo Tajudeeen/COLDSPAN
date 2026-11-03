@@ -1,0 +1,45 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> coldspan-cloudflare@1.0.0 typecheck:worker
+> wrangler types && tsc -p tsconfig.worker.json
+
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
+
+
+
+ ⛅️ wrangler 4.156.2
+────────────────────
+Generating project types...
+
+interface __BaseEnv_Env {
+	ALLOWED_ORIGIN: "https://coldspan-preview.deeen-code.chatgpt.site";
+	BUILD_ID: "coldspan-cf-20261103-3";
+	WORKSPACES: DurableObjectNamespace<import("./cloudflare/worker").ColdspanWorkspace>;
+	REQUEST_GATES: DurableObjectNamespace<import("./cloudflare/worker").ColdspanRequestGate>;
+}
+declare namespace Cloudflare {
+	interface GlobalProps {
+		mainModule: typeof import("./cloudflare/worker");
+		durableNamespaces: "ColdspanWorkspace" | "ColdspanRequestGate";
+	}
+	interface Env extends __BaseEnv_Env {}
+}
+interface Env extends __BaseEnv_Env {}
+type StringifyValues<EnvType extends Record<string, unknown>> = {
+	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
+};
+declare namespace NodeJS {
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "ALLOWED_ORIGIN" | "BUILD_ID">> {}
+}
+
+Generating runtime types...
+
+Runtime types generated.
+
+
+✨ Types written to worker-configuration.d.ts
+
+📖 Read about runtime types
+https://developers.cloudflare.com/workers/languages/typescript/#generate-types
+📣 Remember to rerun 'wrangler types' after you change your wrangler.jsonc file.
+

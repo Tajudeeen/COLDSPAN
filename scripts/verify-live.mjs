@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
+import { createInterface } from 'node:readline';
 const base = 'https://coldspan-api.tajudeenowoeteniyan.workers.dev/api';
 const origin = 'https://coldspan-preview.deeen-code.chatgpt.site';
 async function call(path, body, token, requestOrigin = origin) {
@@ -17,6 +18,21 @@ const api = async (path, body) => {
   if (r.status >= 400) throw Object.assign(new Error(r.data.code), { code: r.data.code });
   return r.data;
 };
+if (process.argv.includes('--hold-redeploy')) {
+  const incident = await api('/incidents', { scenario: 'healthy', seed: 9 });
+  const action = await api(`/incidents/${incident.id}/actions`, { kind: 'facts' });
+  const route = `/incidents/${incident.id}/facts`;
+  const body = { actionId: action.actionId, expectedVersion: 0, incidentId: incident.id, payload: { confirmed: true, quantities: { 'leaf-01': 6, 'fruit-02': 6 } } };
+  const receipt = await api(route, body);
+  console.log('READY_REDEPLOY', health.data.build);
+  const input = createInterface({ input: process.stdin });
+  await new Promise(resolve => input.once('line', resolve));
+  input.close();
+  await check('pre-upgrade receipt and persisted state survive the typed backend deployment', async () => {
+    assert.deepEqual(await api(route, body), receipt);
+    assert.equal((await api(`/incidents/${incident.id}`)).version, 1);
+  });
+}
 async function drill(scenario) {
   let state = await api('/incidents', { scenario, seed: 7 });
   const id = state.id;
@@ -78,5 +94,26 @@ await check('browser preflight permits only the declared origin and request head
   const headers = response.headers.get('Access-Control-Allow-Headers').toLowerCase();
   for (const name of ['authorization', 'content-type', 'x-coldspan-intent']) assert(headers.includes(name));
 });
-await writeFile('evidence/cloudflare-live-checks.json', JSON.stringify({ checkedAt: new Date().toISOString(), build: health.data.build, checks, limitations: 'Synthetic workflow. No Meta execution, physical validation or real dispatch. Tokens are never saved in this report.' }, null, 2));
+await check('authenticated session metadata and compact drill history share the same scope', async () => {
+  const session = await api('/session');
+  assert.equal(session.tenant, reviewer.tenant);
+  assert.equal(session.expiresAt, reviewer.expiresAt);
+  assert(!('token' in session));
+  const drills = await api('/drills');
+  assert(drills.length >= 3);
+  assert(drills.every(drill => Number.isInteger(drill.version) && !('events' in drill) && !('batches' in drill)));
+  assert.deepEqual((await call('/drills', undefined, stranger.token)).data, []);
+});
+await check('expired review refuses session metadata and drill history', async () => {
+  const fresh = (await call('/session', {})).data;
+  assert.equal((await call('/session/close', {}, fresh.token)).status, 200);
+  for (const path of ['/session', '/drills']) {
+    const response = await call(path, undefined, fresh.token);
+    assert.equal(response.status, 401); assert.equal(response.data.code, 'SESSION_EXPIRED');
+  }
+});
+const currentHealth = await call('/health');
+const expected = process.argv.indexOf('--expected-build');
+if (expected >= 0) assert.equal(currentHealth.data.build, process.argv[expected + 1]);
+await writeFile('evidence/cloudflare-live-checks.json', JSON.stringify({ checkedAt: new Date().toISOString(), build: currentHealth.data.build, checks, limitations: 'Synthetic workflow. No Meta execution, physical validation or real dispatch. Tokens are never saved in this report.' }, null, 2));
 console.log(`COMPLETE ${checks.length}/${checks.length}`);

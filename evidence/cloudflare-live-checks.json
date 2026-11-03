@@ -1,7 +1,11 @@
 {
-  "checkedAt": "2026-11-03T03:33:41.523Z",
-  "build": "coldspan-cf-20261026-2",
+  "checkedAt": "2026-11-03T04:03:40.176Z",
+  "build": "coldspan-cf-20261103-3",
   "checks": [
+    {
+      "name": "pre-upgrade receipt and persisted state survive the typed backend deployment",
+      "status": "VERIFIED_HOSTED"
+    },
     {
       "name": "complete outage, duplicate receipt and independent replay export",
       "status": "VERIFIED_HOSTED"
@@ -20,6 +24,14 @@
     },
     {
       "name": "browser preflight permits only the declared origin and request headers",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "authenticated session metadata and compact drill history share the same scope",
+      "status": "VERIFIED_HOSTED"
+    },
+    {
+      "name": "expired review refuses session metadata and drill history",
       "status": "VERIFIED_HOSTED"
     }
   ],

@@ -1,0 +1,26 @@
+name: Verify Coldspan
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run typecheck:worker
+      - run: npm test
+      - run: npm run worker:check
+      - run: npm run build
+      - run: python3 verifier/check.py evidence/cloudflare-hosted-completed.json

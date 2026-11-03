@@ -1,7 +1,7 @@
 npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
 
 > coldspan-cloudflare@1.0.0 worker:check
-> wrangler deploy --dry-run
+> wrangler deploy --dry-run --outdir backend-dist
 
 [33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mProxy environment variables detected. We'll use your proxy for fetch requests.[0m
 
@@ -9,14 +9,12 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 
  ⛅️ wrangler 4.156.2
 ────────────────────
-Total Upload: 39.30 KiB / gzip: 12.23 KiB
+Total Upload: 40.30 KiB / gzip: 12.53 KiB
 Your Worker has access to the following bindings:
 Binding                                                              Resource                  
 env.WORKSPACES (ColdspanWorkspace)                                   Durable Object            
 env.REQUEST_GATES (ColdspanRequestGate)                              Durable Object            
 env.ALLOWED_ORIGIN ("https://coldspan-preview.deeen-code.c...")      Environment Variable      
-env.BUILD_ID ("coldspan-cf-20261026-2")                              Environment Variable      
+env.BUILD_ID ("coldspan-cf-20261103-3")                              Environment Variable      
 
 --dry-run: exiting now.
-
-Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md

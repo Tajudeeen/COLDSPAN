@@ -3,3 +3,6 @@ node_modules/
 
 .wrangler/
 .dev.vars
+
+backend-dist/
+worker-configuration.d.ts

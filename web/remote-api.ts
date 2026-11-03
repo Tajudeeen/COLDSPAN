@@ -21,7 +21,7 @@ export function createRemoteApi(storage: Pick<Storage, 'getItem' | 'setItem'>, t
     if (!response.ok) throw new ApiError(data.code || 'REQUEST_FAILED', response.status, data.detail);
     if (path === '/session') {
       if (typeof data.token !== 'string' || !/^cs_[a-f0-9]{64}$/.test(data.token)) throw new Error('INVALID_SESSION_RESPONSE');
-      storage.setItem(SESSION_KEY, data.token);
+      if (storage.getItem(SESSION_KEY) === token) storage.setItem(SESSION_KEY, data.token);
     }
     return data;
   };

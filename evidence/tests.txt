@@ -3,23 +3,45 @@ npm warn Unknown env config "http-proxy". This will stop working in the next maj
 > coldspan-cloudflare@1.0.0 test
 > node --import tsx --test tests/*.test.ts
 
-✔ SHA-256 matches standard test vector (1.39399ms)
-✔ interactive preview completes outage (12.405711ms)
-✔ interactive preview completes healthy (1.177596ms)
-✔ remote transport attaches the review bearer and explicit mutation intent (6.274747ms)
-✔ a committed action with a lost response keeps its identity across journal reload (1.248292ms)
-✔ uncertain outcome preserves pending identity: Error INTERNAL_ERROR (0.285849ms)
-✔ uncertain outcome preserves pending identity: SyntaxError Invalid response JSON (0.303126ms)
-✔ uncertain outcome preserves pending identity: TimeoutError Timed out (0.12508ms)
-✔ a definitive version refusal clears the pending journal (0.407967ms)
-✔ a malformed success cannot discard an unresolved action (0.28286ms)
-✔ concurrent tabs cannot erase another unresolved action journal (0.367488ms)
-✔ legacy unresolved request is migrated without replacing its identity (0.238374ms)
-ℹ tests 12
+✔ SHA-256 matches standard test vector (2.295682ms)
+✔ interactive preview completes outage (21.51408ms)
+✔ interactive preview completes healthy (2.230463ms)
+✔ drill summaries are bounded records and retain the original full-state route (15.93791ms)
+✔ failed receipt insertion rolls back state and the action can recover exactly (2.641821ms)
+✔ competing reservation versions cannot commit twice (5.965608ms)
+✔ exact receipt survives disk SQLite restart and refuses changed payload (30.396721ms)
+✔ an expired session is explicit and its cleanup removes operational data (0.904841ms)
+✔ drill list and evidence stay isolated between workspaces (0.956387ms)
+✔ typed store preserves the recovered backend behavior: outage (35.826383ms)
+✔ typed store preserves the recovered backend behavior: healthy (3.296694ms)
+✔ typed store preserves the recovered backend behavior: last-slot (7.291453ms)
+✔ typed store preserves the recovered backend behavior: incompatible (9.095991ms)
+✔ typed store preserves the recovered backend behavior: no-responder (5.715729ms)
+✔ typed store preserves the recovered backend behavior: no-space (5.014419ms)
+✔ typed store preserves the recovered backend behavior: stale (3.633083ms)
+✔ typed store preserves the recovered backend behavior: uncertain (21.681598ms)
+✔ remote transport attaches the review bearer and explicit mutation intent (5.422705ms)
+✔ a committed action with a lost response keeps its identity across journal reload (1.542142ms)
+✔ uncertain outcome preserves pending identity: Error INTERNAL_ERROR (0.484818ms)
+✔ uncertain outcome preserves pending identity: SyntaxError Invalid response JSON (0.233016ms)
+✔ uncertain outcome preserves pending identity: TimeoutError Timed out (0.148868ms)
+✔ a definitive version refusal clears the pending journal (0.484238ms)
+✔ a malformed success cannot discard an unresolved action (0.309931ms)
+✔ concurrent tabs cannot erase another unresolved action journal (2.103389ms)
+✔ legacy unresolved request is migrated without replacing its identity (0.307737ms)
+✔ workspace reload restores the selected earlier drill rather than the newest (2.920666ms)
+✔ expired access never triggers automatic replacement (1.247822ms)
+✔ missing key with an unresolved action does not create an unrelated review (1.153422ms)
+✔ starting after confirmed expiry preserves pending identities in an archive (3.969864ms)
+✔ a session changed by another tab cannot be archived or replaced (0.354097ms)
+✔ a still-active review cannot be reset through the expiry action (0.521342ms)
+✔ an in-flight session creation cannot overwrite a newer access key (4.780923ms)
+✔ a transient bootstrap failure leaves the existing key available for retry (0.472789ms)
+ℹ tests 34
 ℹ suites 0
-ℹ pass 12
+ℹ pass 34
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 211.97116
+ℹ duration_ms 354.004369

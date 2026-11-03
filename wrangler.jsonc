@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "coldspan-api",
-  "main": "cloudflare/deployed-worker.mjs",
+  "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-10-26",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
@@ -18,7 +18,7 @@
   },
   "vars": {
     "ALLOWED_ORIGIN": "https://coldspan-preview.deeen-code.chatgpt.site",
-    "BUILD_ID": "coldspan-cf-20261026-2"
+    "BUILD_ID": "coldspan-cf-20261103-3"
   },
   "observability": { "enabled": true, "head_sampling_rate": 0.1 }
 }

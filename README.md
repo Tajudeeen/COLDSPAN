@@ -21,6 +21,7 @@ Requires Node 24 or later and Python 3.10 or later.
 ```sh
 npm ci
 npm run typecheck
+npm run typecheck:worker
 npm test
 npm run build
 npm run worker:check
@@ -34,9 +35,17 @@ The live check creates isolated synthetic reviewer data on the deployed API. Cre
 
 ## Backend recovery and deployment
 
-`cloudflare/deployed-worker.mjs` is the complete, unminified runtime module recovered from Cloudflare on November 3, 2026. It preserves the deployed storage and policy implementation exactly. Original uncommitted TypeScript migration files were lost when the temporary checkout was removed. The restored module is committed here so subsequent work does not depend on temporary files. `evidence/backend-provenance.json` records its hash and observed build. Restoring typed modular source remains maintenance work.
+`cloudflare/worker.ts` is the active Worker entrypoint. It uses `cloudflare/store.ts` for transactional persistence and the shared deterministic rules in `src/domain.ts`. Wrangler generates binding and runtime types during `npm run typecheck:worker`. The generated declaration and backend bundle are ignored build artifacts.
 
-`wrangler.jsonc` mirrors the observed compatibility date, bindings, build ID and origin configuration. The two Durable Object exports must retain their names and SQLite namespaces. Validate future backend changes with Wrangler and the hosted checks before claiming a rollout succeeded. Frontend publication uses the existing Site identity in `.openai/hosting.json`.
+`cloudflare/deployed-worker.mjs` remains an immutable copy of the recovered October backend. Parity tests compare the typed store against this copy across all eight scenarios. `evidence/backend-provenance.json` identifies the historical module. The typed source preserves its schema, action identities and payload hashes. The upgrade check starts with a receipt committed by the old backend and recovers that exact receipt after deploying the typed backend.
+
+`wrangler.jsonc` retains the existing compatibility date and both SQLite Durable Object class names. The active build is `coldspan-cf-20261103-3`. Frontend publication retains the existing Site identity in `.openai/hosting.json`. `.github/workflows/verify.yml` runs type checks, tests, the Worker dry run, frontend build and independent evidence replay on pushes and pull requests. It does not deploy or call a model.
+
+## Saved drills and session expiry
+
+The workspace selector opens any retained drill and restores the chosen drill after reload. Its compact history endpoint returns summaries rather than downloading all event ledgers. The interface shows connection state and the server-issued expiry time, blocks mutations while loading and offers a real bootstrap retry if connectivity fails.
+
+An existing access key is never silently replaced after an authentication or expiry failure. Starting a separate review requires an explicit action and a fresh server confirmation that the old review expired. Pending action identities are copied into an expired-review record in browser storage before leaving the old workspace. This archive contains request identities, not an access key or recoverable cloud data. Account-linked recovery remains unfinished.
 
 ## Trust boundaries and remaining work
 
