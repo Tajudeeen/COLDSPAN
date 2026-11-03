@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { digest, type State, type Transfer } from '../src/domain';
 import './style.css';
+import './brand.css';
 import { remoteApi, downloadEvidence, ApiError, SESSION_KEY } from './remote-api';
 import { commitPending, loadPending, PENDING_KEY, PENDING_PREFIX, type PendingRequest } from './action-journal';
 import { loadWorkspace, restartExpiredReview, CURRENT_KEY, type SessionInfo, type WorkspaceSnapshot } from './workspace';
 import { IntakePanel } from './intake-panel';
+import { INTRO_SESSION_KEY, SplashScreen, WorkspaceFooter } from './brand';
 import type { DrillSummary } from '../cloudflare/store';
 const icon = (name: string) =>
   ({ overview: '◫', plan: '≋', transfers: '⇄', evidence: '▤' })[name] || '·';
@@ -28,7 +30,16 @@ function App() {
     [drills, setDrills] = useState<DrillSummary[]>([]),
     [intakeRevision, setIntakeRevision] = useState(0),
     [intakeRef, setIntakeRef] = useState<{ id: string; digest: string } | null>(null),
-    [sourceNotes, setSourceNotes] = useState('');
+    [sourceNotes, setSourceNotes] = useState(''),
+    [showIntro, setShowIntro] = useState(() => { try { return sessionStorage.getItem(INTRO_SESSION_KEY) !== 'seen'; } catch { return false; } });
+  const introReturnFocus = useRef<HTMLElement | null>(null);
+  const closeIntro = useCallback(() => {
+    try { sessionStorage.setItem(INTRO_SESSION_KEY, 'seen'); } catch {}
+    setShowIntro(false);
+  }, []);
+  useEffect(() => {
+    if (!showIntro) (introReturnFocus.current ?? document.getElementById('workspace-heading'))?.focus({ preventScroll: true });
+  }, [showIntro]);
   const expiredToken = useRef<string | null>(null);
   const blocked = busy || connection !== 'ready';
   const running = useRef(false);
@@ -177,7 +188,9 @@ function App() {
         0,
       );
   return (
-    <div className="app">
+    <>
+    {showIntro && <SplashScreen onDismiss={closeIntro} />}
+    <div className="app" inert={showIntro} aria-hidden={showIntro || undefined}>
       <aside className={menu ? 'sidebar open' : 'sidebar'}>
         <a className="brand" href="/">
           <span className="brand-symbol">
@@ -242,7 +255,7 @@ function App() {
           <div className="heading">
             <div>
               <div className="eyebrow">COLD CHAIN RECOVERY · CLOUDFLARE WORKSPACE</div>
-              <h1>
+              <h1 id="workspace-heading" tabIndex={-1}>
                 {tab === 'overview'
                   ? 'Keep the chain together.'
                   : tab === 'plan'
@@ -1032,14 +1045,18 @@ function App() {
               Create drill →
             </button>
           </section>
-          <footer>
-            <span className="footer-brand">coldspan.</span>
-            <span>Recovery you can trace.</span>
-            <span>Cloudflare-backed simulator · Meta unavailable · No physical validation</span>
-          </footer>
+          <WorkspaceFooter onNavigate={nextTab => {
+            setTab(nextTab);
+            document.getElementById('workspace-heading')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+            document.getElementById('workspace-heading')?.focus({ preventScroll: true });
+          }} onReplay={() => {
+            introReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+            setShowIntro(true);
+          }} />
         </div>
       </main>
     </div>
+    </>
   );
 }
 createRoot(document.getElementById('root')!).render(<App />);
