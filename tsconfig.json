@@ -21,6 +21,7 @@
     "web",
     "tests",
     "vite.config.ts",
-    "scripts/evaluate-intake.ts"
+    "scripts/evaluate-intake.ts",
+    "scripts/evaluate-model.ts"
   ]
 }

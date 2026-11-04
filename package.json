@@ -6,12 +6,14 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --import tsx --test tests/*.test.ts",
+    "test": "node --import tsx --test tests/*.test.ts tests/*.test.mjs",
     "typecheck": "tsc --noEmit",
     "worker:check": "wrangler deploy --dry-run --outdir backend-dist",
     "verify:live": "node scripts/verify-live.mjs",
     "typecheck:worker": "wrangler types && tsc -p tsconfig.worker.json",
-    "evaluate:intake": "node --import tsx scripts/evaluate-intake.ts"
+    "evaluate:intake": "node --import tsx scripts/evaluate-intake.ts",
+    "evaluate:model": "node --import tsx scripts/evaluate-model.ts",
+    "check:readiness": "node scripts/check-readiness.mjs"
   },
   "dependencies": {
     "@noble/hashes": "2.4.0",

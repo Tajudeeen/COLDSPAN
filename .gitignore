@@ -6,3 +6,4 @@ node_modules/
 
 backend-dist/
 worker-configuration.d.ts
+ops-output/

@@ -1,0 +1,19 @@
+{
+  "checkedAt": "2026-11-04T12:59:11.557Z",
+  "kind": "READ_ONLY_API_READINESS",
+  "pass": true,
+  "checks": [
+    {
+      "path": "/api/health",
+      "pass": true,
+      "build": "coldspan-cf-20261103-4"
+    },
+    {
+      "path": "/api/capabilities",
+      "pass": true,
+      "model": "UNAVAILABLE",
+      "reason": "MODEL_API_KEY_MISSING"
+    }
+  ],
+  "limitation": "Availability and configuration only. Does not prove browser workflow, account recovery, live model behavior or physical operation."
+}

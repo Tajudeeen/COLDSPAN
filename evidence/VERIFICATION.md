@@ -20,3 +20,7 @@ A complete authenticated browser walkthrough has not been verified. The earlier 
 `cloudflare/deployed-worker.mjs` is retained as the historical parity baseline. The active entrypoint now uses typed modules. No database namespace was deleted, renamed or transferred during the upgrade.
 
 Older, uncommitted migration tests were lost before source recovery. Their reported totals are not added to current checked-in test counts. All stock, rooms and movements remain synthetic. No Meta execution or real dispatch is claimed. The adapter is prepared but unavailable on the deployed Worker. Fixture records are explicitly labeled and cannot claim model usage. Expired-review browser archives preserve pending request identities only. They cannot restore expired cloud data or replace account authentication.
+
+## Operational tooling, November 4, 2026
+
+Seventy-eight tests pass, including negative checks for the semantic evaluation scorer and monitor. The read-only hosted readiness check passes for build `coldspan-cf-20261103-4`, including allowed-origin headers. Meta capability reports `MODEL_API_KEY_MISSING`, independently consistent with the Cloudflare secret-name inventory, which contains no configured secrets. This pass makes zero provider calls. The new scheduled monitor records availability failures in GitHub Actions. Owner notification delivery remains unverified. No new authenticated browser, real-device, backup restoration or account recovery verification is claimed. See `ops/PRODUCTION.md` for the remaining gates.

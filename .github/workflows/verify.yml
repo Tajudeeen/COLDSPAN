@@ -21,6 +21,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run typecheck:worker
       - run: npm test
+      - run: npm run evaluate:model
       - run: npm run evaluate:intake
       - run: npm run worker:check
       - run: npm run build

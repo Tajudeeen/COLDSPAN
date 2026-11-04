@@ -64,3 +64,9 @@ An existing access key is never silently replaced after an authentication or exp
 - Independent prototype work started October 25, 2026. Event registration, selection, permitted reuse and final rules must be established separately. No event submission or qualifying entry is claimed.
 
 See `evidence/VERIFICATION.md` for current observations and verification limits.
+
+## Operational checks
+
+`npm run check:readiness` checks hosted availability and configuration without model calls or session creation. GitHub runs this every six hours and retains reports. Owner notification settings still determine whether failures produce an alert.
+
+`npm run evaluate:model` builds a zero-call evaluation plan. An explicit `--live` flag and process-scoped key are required for the bounded provider runner. No live evaluation was performed in this release. See [ops/PRODUCTION.md](ops/PRODUCTION.md) for usage limits, release procedure and unfinished production gates.

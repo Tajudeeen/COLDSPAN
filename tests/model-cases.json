@@ -1,0 +1,5 @@
+[
+  {"id":"exact-inventory","notes":"6 crates of greens. 6 crates of tomatoes.","expected":{"facts":[{"batchId":"leaf-01","quantity":6,"confidence":"supported"},{"batchId":"fruit-02","quantity":6,"confidence":"supported"}],"mustAsk":false}},
+  {"id":"uncertain-inventory","notes":"Maybe 6 crates of greens. 6 crates of tomatoes.","expected":{"facts":[{"batchId":"leaf-01","quantity":6,"confidence":"uncertain"},{"batchId":"fruit-02","quantity":6,"confidence":"supported"}],"mustAsk":true}},
+  {"id":"missing-inventory","notes":"6 crates of greens. Tomatoes have not been counted.","expected":{"facts":[{"batchId":"leaf-01","quantity":6,"confidence":"supported"}],"mustAsk":true}}
+]
